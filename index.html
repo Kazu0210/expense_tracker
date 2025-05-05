@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expense Tracker (JavaScript)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: space-between;
+        }
+
+        form input[type="text"],
+        form input[type="number"] {
+            flex: 1 1 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
+        form button {
+            padding: 10px 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: #3498db;
+            color: white;
+            flex: 1;
+        }
+
+        form button#cancelEdit {
+            background: #aaa;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 25px;
+        }
+
+        th, td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #f0f0f0;
+        }
+
+        .actions button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 10px;
+            margin-right: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .actions button:last-child {
+            background: #e74c3c;
+        }
+
+        @media (min-width: 600px) {
+            form input[type="text"],
+            form input[type="number"] {
+                flex: 1 1 45%;
+            }
+
+            form button {
+                flex: 1 1 48%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Expense Tracker</h2>
+    
+        <form id="expenseForm">
+            <input type="text" id="description" placeholder="Description" required>
+            <input type="number" id="amount" placeholder="Amount" step="0.01" required>
+            <input type="hidden" id="index">
+            <button type="submit">Add Expense</button>
+            <button type="button" id="cancelEdit">Cancel</button>
+        </form>
+    
+        <div style="margin-top: 20px; font-size: 18px; font-weight: bold;">
+            Total for Today: ₱<span id="totalToday">0.00</span>
+        </div>
+    
+        <table id="expenseTable">
+            <thead>
+            <tr>
+                <th>Description</th>
+                <th>Amount (₱)</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <script>
+        let expenses = JSON.parse(localStorage.getItem('expenses') || '[]');
+        const form = document.getElementById('expenseForm');
+        const tbody = document.querySelector('#expenseTable tbody');
+        const cancelEditBtn = document.getElementById('cancelEdit');
+        const totalTodayEl = document.getElementById('totalToday');
+    
+        function saveExpenses() {
+            localStorage.setItem('expenses', JSON.stringify(expenses));
+            renderExpenses();
+        }
+    
+        function calculateTodayTotal() {
+            const today = new Date().toISOString().split('T')[0];
+            const total = expenses
+                .filter(exp => exp.date === today)
+                .reduce((sum, exp) => sum + parseFloat(exp.amount), 0);
+            totalTodayEl.textContent = total.toFixed(2);
+        }
+    
+        function renderExpenses() {
+            tbody.innerHTML = '';
+            expenses.forEach((exp, i) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${exp.description}</td>
+                    <td>${parseFloat(exp.amount).toFixed(2)}</td>
+                    <td>${exp.date}</td>
+                    <td class="actions">
+                        <button onclick="editExpense(${i})">Edit</button>
+                        <button onclick="deleteExpense(${i})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+            calculateTodayTotal();
+        }
+    
+        form.onsubmit = function (e) {
+            e.preventDefault();
+            const description = document.getElementById('description').value.trim();
+            const amount = document.getElementById('amount').value.trim();
+            const index = document.getElementById('index').value;
+    
+            if (!description || !amount) return;
+    
+            const expenseData = {
+                description,
+                amount: parseFloat(amount),
+                date: new Date().toISOString().split('T')[0]
+            };
+    
+            if (index === '') {
+                expenses.push(expenseData);
+            } else {
+                expenses[index] = {
+                    ...expenses[index],
+                    description: expenseData.description,
+                    amount: expenseData.amount
+                };
+            }
+    
+            form.reset();
+            document.getElementById('index').value = '';
+            cancelEditBtn.style.display = 'none';
+            saveExpenses();
+        };
+    
+        function deleteExpense(i) {
+            if (confirm("Are you sure you want to delete this expense?")) {
+                expenses.splice(i, 1);
+                saveExpenses();
+            }
+        }
+    
+        function editExpense(i) {
+            const expense = expenses[i];
+            document.getElementById('description').value = expense.description;
+            document.getElementById('amount').value = expense.amount;
+            document.getElementById('index').value = i;
+            cancelEditBtn.style.display = 'inline-block';
+        }
+    
+        cancelEditBtn.onclick = () => {
+            form.reset();
+            document.getElementById('index').value = '';
+            cancelEditBtn.style.display = 'none';
+        };
+    
+        renderExpenses();
+    </script>
+    </body>
+    
+</html>
